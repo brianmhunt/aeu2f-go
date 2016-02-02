@@ -2,6 +2,10 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <title>U2F AppEngine Demo</title>
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <script type="text/javascript" src="u2f-api.js"></script>
+    <script src='demo.js'></script>
   </head>
   <body>
     <h1>FIDO U2F Go Library Demo</h1>
@@ -11,39 +15,6 @@
     </ul>
     <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
     <script>
-      function checkExtension() {
-        if (!window.u2f) {
-          alert('Please install the Chrome U2F extension first.');
-          return false;
-        }
-        return true;
-      }
-      function u2fRegistered(resp) {
-        $.post('/registerResponse', JSON.stringify(resp)).done(function() {
-          alert('Success');
-        });
-      }
-      function register() {
-        if (!checkExtension()) {
-          return;
-        }
-        $.getJSON('/registerRequest').done(function(req) {
-          u2f.register([req], [], u2fRegistered, 100)
-        });
-      }
-      function u2fSigned(resp) {
-        $.post('/signResponse', JSON.stringify(resp)).done(function() {
-          alert('Success');
-        });
-      }
-      function sign() {
-        if (!checkExtension()) {
-          return;
-        }
-        $.getJSON('/signRequest').done(function(req) {
-          u2f.sign([req], u2fSigned, 10);
-        });
-      }
     </script>
   </body>
 </html>

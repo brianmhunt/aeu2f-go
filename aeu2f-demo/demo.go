@@ -62,9 +62,112 @@ func registerRequest(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(req)
 }
 
+func registerResponse(w http.ResponseWriter, r *http.Request) {
+	var regResp u2f.RegisterResponse
+	if err := json.NewDecoder(r.Body).Decode(&regResp); err != nil {
+		http.Error(w, "invalid response: "+err.Error(), http.StatusBadRequest)
+		return
+	}
 
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-  b, err := ioutil.ReadFile("index.html")
+	log.Printf("registerResponse: %+v", regResp)
+
+	if challenge == nil {
+		http.Error(w, "challenge not found", http.StatusBadRequest)
+		return
+	}
+
+	reg, err := u2f.Register(regResp, *challenge, nil)
+	if err != nil {
+		log.Printf("u2f.Register error: %v", err)
+		http.Error(w, "error verifying response", http.StatusInternalServerError)
+		return
+	}
+	buf, err := reg.MarshalBinary()
+	if err != nil {
+		log.Printf("reg.MarshalBinary error: %v", err)
+		http.Error(w, "error", http.StatusInternalServerError)
+		return
+	}
+	registration = buf
+	counter = 0
+
+	log.Printf("Registration success: %+v", registration)
+	w.Write([]byte("success"))
+}
+
+func signRequest(w http.ResponseWriter, r *http.Request) {
+	if registration == nil {
+		http.Error(w, "registration missing", http.StatusBadRequest)
+		return
+	}
+
+	c, err := u2f.NewChallenge(appID, trustedFacets)
+	if err != nil {
+		log.Printf("u2f.NewChallenge error: %v", err)
+		http.Error(w, "error", http.StatusInternalServerError)
+		return
+	}
+	challenge = c
+
+	var reg u2f.Registration
+	if err := reg.UnmarshalBinary(registration); err != nil {
+		log.Printf("reg.UnmarshalBinary error: %v", err)
+		http.Error(w, "error", http.StatusInternalServerError)
+		return
+	}
+
+	req := c.SignRequest(reg)
+	log.Printf("signRequest: %+v", req)
+	json.NewEncoder(w).Encode(req)
+}
+
+func signResponse(w http.ResponseWriter, r *http.Request) {
+	var signResp u2f.SignResponse
+	if err := json.NewDecoder(r.Body).Decode(&signResp); err != nil {
+		http.Error(w, "invalid response: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("signResponse: %+v", signResp)
+
+	if challenge == nil {
+		http.Error(w, "challenge missing", http.StatusBadRequest)
+		return
+	}
+	if registration == nil {
+		http.Error(w, "registration missing", http.StatusBadRequest)
+		return
+	}
+
+	var reg u2f.Registration
+	if err := reg.UnmarshalBinary(registration); err != nil {
+		log.Printf("reg.UnmarshalBinary error: %v", err)
+		http.Error(w, "error", http.StatusInternalServerError)
+		return
+	}
+
+	newCounter, err := reg.Authenticate(signResp, *challenge, counter)
+	if err != nil {
+		log.Printf("VerifySignResponse error: %v", err)
+		http.Error(w, "error verifying response", http.StatusInternalServerError)
+		return
+	}
+	log.Printf("newCounter: %d", newCounter)
+	counter = newCounter
+
+	w.Write([]byte("success"))
+}
+
+
+
+func fileHandler(w http.ResponseWriter, r *http.Request) {
+  var path string
+  if r.URL.Path == "/" {
+    path = "index.html"
+  } else {
+    path = r.URL.Path[1:]
+  }
+  b, err := ioutil.ReadFile(path)
   if err != nil {
       panic(err)
   }
@@ -74,5 +177,9 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 
 func init() {
-    http.HandleFunc("/", indexHandler)
+    http.HandleFunc("/", fileHandler)
+  	http.HandleFunc("/registerRequest", registerRequest)
+  	http.HandleFunc("/registerResponse", registerResponse)
+  	http.HandleFunc("/signRequest", signRequest)
+  	http.HandleFunc("/signResponse", signResponse)
 }
