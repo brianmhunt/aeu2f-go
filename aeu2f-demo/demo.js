@@ -77,7 +77,18 @@ function getU2FResponseToChallenge(kind, req) {
 }
 
 
-var Model = {
+function sendChallengeResponse(url, resp) {
+  // The resp could contain an errorCode, as per:
+  // https://developers.yubico.com/U2F/Libraries/Client_error_codes.html
+  if (resp.errorCode) {
+    Action.add("U2F Failed.", resp, 'fail')
+    throw new Error("U2F failed, error code: ", resp.errorCode)
+  }
+  return request("post", url, resp).fail(on_fail)
+}
+
+
+ko.applyBindings({
   is_https: window.location.protocol === 'https:',
   supported: Boolean(window.u2f),
   actions: actions,
@@ -97,18 +108,4 @@ var Model = {
       .then(sendChallengeResponse.bind(null, '/signResponse'))
       .then(function () { Action.add("Signed", null, 'pass') })
   },
-}
-
-
-function sendChallengeResponse(url, resp) {
-  // The resp could contain an errorCode, as per:
-  // https://developers.yubico.com/U2F/Libraries/Client_error_codes.html
-  if (resp.errorCode) {
-    Action.add("U2F Failed.", resp, 'fail')
-    throw new Error("U2F failed, error code: ", resp.errorCode)
-  }
-  return request("post", url, resp).fail(on_fail)
-}
-
-
-ko.applyBindings(Model)
+})
