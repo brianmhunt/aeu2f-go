@@ -2,17 +2,79 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>U2F AppEngine Demo</title>
+    <title>U2F Demo over AppEngine-Go</title>
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <link rel='stylesheet' href='//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css'/>
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
   </head>
   <body>
-    <h1>FIDO U2F Go Library Demo</h1>
-    <ul>
-      <li><a href="javascript:register();">Register token</a></li>
-      <li><a href="javascript:sign();">Authenticate</a></li>
-    </ul>
+    <div class='container hide' data-bind='css: {hide: false}'>
+      <div class="page-header">
+        <h1>U2F Demo over AppEngine-Go</h1>
+      </div>
+
+      <div class='alert alert-danger' data-bind='visible: !is_https'>
+        <h4>HTTPS required</h4>
+        <p>
+          U2F keys can only be registered or authenticated over HTTPS.  This
+          demonstration will not work over this connection.
+        </p>
+
+        <p>
+          Consider using a HTTPS proxy such
+          as <a target=_blank href='https://ngrok.com/'>ngrok</a>.
+        </p>
+      </div>
+
+      <div class='alert alert-danger' data-bind='visible: !supported'>
+        <h4>U2F Support Required</h4>
+          <p>
+            The current browser does not appear to support the FIDO `window.u2f`
+            protocol.  This demonstration will not work in this browser.
+          </p>
+
+          <p>
+            <a href='http://caniuse.com/#search=u2f' target=_blank>See Supported Browsers</a>
+          </p>
+      </div>
+
+      <div class='alert alert-info' data-bind='visible: waiting_for_key'>
+        <div class='pull-right'>
+          <i class='fa fa-4x fa-spin fa-spinner'></i>
+        </div>
+        <h4> Waiting for Key </h4>
+        Press your U2F token key now.
+      </div>
+
+      <div class='row'>
+        <div class='col-sm-3'>
+          <button class='btn btn-primary btn-block' data-bind='click: onRegisterClick'>
+            Register Key
+          </button>
+
+          <hr/>
+
+          <button class='btn btn-primary btn-block' data-bind='click: onAuthenticateClick'>
+            Authenticate
+          </button>
+        </div>
+
+        <div class='col-sm-9'>
+          <h3>Activity</h3>
+          <div class='list-group' data-bind='foreach: actions'>
+            <div class='list-group-item' data-bind='css: css'>
+              <small class='pull-right' data-bind='text: at'></small>
+              <h4 data-bind='text: name'></h4>
+              <div style='overflow: auto' data-bind='visible: data, text: data'></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script type="text/javascript" src="u2f-api.js"></script>
     <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src='//cdnjs.cloudflare.com/ajax/libs/knockout/3.4.0/knockout-min.js'></script>
     <script type="text/javascript" src='demo.js'></script>
   </body>
 </html>

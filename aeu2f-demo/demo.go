@@ -86,6 +86,7 @@ func registerRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
   // save challenge c
+  challenge = c
 
 	req := c.RegisterRequest()
 
