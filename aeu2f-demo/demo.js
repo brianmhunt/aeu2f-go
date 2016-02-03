@@ -14,69 +14,78 @@ function Action(name, data, style) {
 Action.style_map = {
   'fail': 'list-group-item-danger',
   'pass': 'list-group-item-success',
-  'info': 'list-group-item-info'
+  'info': 'list-group-item-info',
+  'warn': 'list-group-item-warning',
 }
 
 var actions = ko.observableArray([new Action("Page Loaded", null, 'pass')])
 var waiting_for_key = ko.observable(false)
-
+var is_communicating = ko.observable(false)
 
 Action.add = function(name, data, style) {
   actions.unshift(new Action(name, data, style))
 }
+
+
+function on_fail(msg) {
+  Action.add("Transmission failed", msg, 'fail')
+  throw new Error("Transmission failed.")
+}
+
+
+function request(type, url, data) {
+  if (is_communicating()) { return }
+  is_communicating(true)
+  Action.add("[" + type + "] " + url, data, 'info')
+
+  // GET the Challenges or POST the Responses
+  return $[type](url, data ? JSON.stringify(data) : undefined)
+    .always(function () { is_communicating(false) })
+    .fail(on_fail)
+}
+
+
+function getU2FResponseToChallenge(kind, req) {
+  Action.add("U2F Challenged to: " + kind, req, 'warn')
+  waiting_for_key(true)
+  var promise = $.Deferred()
+
+  if (kind === 'register') {
+    u2f.register([req], [], promise.resolve.bind(promise), 20)
+  } else {  // kind is 'sign'
+    u2f.sign([req], promise.resolve.bind(promise), 20)
+  }
+
+  promise.always(function () { waiting_for_key(false) })
+  return promise
+}
+
 
 var Model = {
   is_https: window.location.protocol === 'https:',
   supported: Boolean(window.u2f),
   actions: actions,
   waiting_for_key: waiting_for_key,
+  is_communicating: is_communicating,
 
   onRegisterClick: function () {
-    Action.add("Registration Challenge Requested", null, 'info')
-    $.getJSON('/registerRequest')
-      .done(function(req) {
-        Action.add("Registration Challenge Received", req, 'info')
-        waiting_for_key(true)
-        u2f.register([req], [], afterTokenKeyPress, 20)
-      })
-      .fail(function(msg) {
-        Action.add("Challenge Request Failed", msg, 'fail')
-      });
+    request("getJSON", "/registerRequest")
+      .then(getU2FResponseToChallenge.bind(null, 'register'))
+      .then(sendChallengeResponse.bind(null, '/registerResponse'))
+      .then(function () { Action.add("Registered", null, 'pass') })
   },
 
   onAuthenticateClick: function () {
-
+    request("getJSON", "/signRequest")
+      .then(getU2FResponseToChallenge.bind(null, 'sign'))
+      .then(sendChallengeResponse.bind(null, '/signResponse'))
+      .then(function () { Action.add("Signed", null, 'pass') })
   },
 }
 
 
-function afterTokenKeyPress(resp) {
-  waiting_for_key(false)
-  Action.add("Registration Challenge Ended", resp, 'info')
-  $.post('/registerResponse', JSON.stringify(resp))
-    .done(function() {
-      Action.add("Registered", resp, 'pass')
-    })
-    .fail(function(msg) {
-      Action.add("Registration Failed", msg, 'fail')
-    });
-}
-
-function u2fSigned(resp) {
-  $.post('/signResponse', JSON.stringify(resp)).done(function() {
-    alert('Success');
-  });
-}
-
-function sign() {
-  $.getJSON('/signRequest').done(function(req) {
-    u2f.sign([req], u2fSigned, 10);
-  });
-}
-
-
-if (!window.u2f) {
-  alert('Please install the U2F API.');
+function sendChallengeResponse(url, resp) {
+  return request("post", url, resp).fail(on_fail)
 }
 
 

@@ -10,7 +10,9 @@
   <body>
     <div class='container hide' data-bind='css: {hide: false}'>
       <div class="page-header">
-        <h1>U2F Demo over AppEngine-Go</h1>
+        <h1>
+          U2F Demo over AppEngine-Go
+        </h1>
       </div>
 
       <div class='alert alert-danger' data-bind='visible: !is_https'>
@@ -22,7 +24,10 @@
 
         <p>
           Consider using a HTTPS proxy such
-          as <a target=_blank href='https://ngrok.com/'>ngrok</a>.
+          as <a target=_blank href='https://ngrok.com/'>ngrok</a>
+          or <a target=_blank href='https://fxyecgbxgq.localtunnel.me'>
+            localtunnel.me
+          </a>.
         </p>
       </div>
 
@@ -38,16 +43,27 @@
           </p>
       </div>
 
-      <div class='alert alert-info' data-bind='visible: waiting_for_key'>
-        <div class='pull-right'>
-          <i class='fa fa-4x fa-spin fa-spinner'></i>
-        </div>
+      <div class='alert alert-info text-center' data-bind='visible: waiting_for_key'>
         <h4> Waiting for Key </h4>
+        <i class='fa fa-lg fa-spin fa-spinner'></i>
         Press your U2F token key now.
       </div>
 
+      <div class='alert alert-warning' data-bind='visible: is_communicating'>
+        <div class='pull-right'>
+          <i class='fa fa-3x fa-spin fa-cog'></i>
+        </div>
+        <h4>Please wait.</h4>
+        Communicating with server ...
+      </div>
+
+
       <div class='row'>
         <div class='col-sm-3'>
+          <p>
+            Register and test the authentication of your FIDO U2F key here.
+          </p>
+
           <button class='btn btn-primary btn-block' data-bind='click: onRegisterClick'>
             Register Key
           </button>
@@ -65,7 +81,7 @@
             <div class='list-group-item' data-bind='css: css'>
               <small class='pull-right' data-bind='text: at'></small>
               <h4 data-bind='text: name'></h4>
-              <div style='overflow: auto' data-bind='visible: data, text: data'></div>
+              <pre class='small' data-bind='visible: data, text: data'></pre>
             </div>
           </div>
         </div>
