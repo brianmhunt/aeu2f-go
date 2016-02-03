@@ -8,13 +8,22 @@
     <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
   </head>
   <body>
-    <div class='container hide' data-bind='css: {hide: false}'>
+
+    <div class='container'>
       <div class="page-header">
         <h1>
           U2F Demo over AppEngine-Go
         </h1>
       </div>
+    </div>
 
+    <div class='container' data-bind='css: {hide: true}'>
+      <div class='alert alert-info'>
+        Page is loading.  Please wait.
+      </div>
+    </div>
+
+    <div class='container hide' data-bind='css: {hide: false}'>
       <div class='alert alert-danger' data-bind='visible: !is_https'>
         <h4>HTTPS required</h4>
         <p>
