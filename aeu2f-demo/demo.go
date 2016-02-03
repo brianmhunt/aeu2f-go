@@ -8,7 +8,6 @@ import (
   "encoding/json"
   "io/ioutil"
 
-  "appengine"
   // "appengine"
   // "appengine/datastore"
   // "github.com/brianmhunt/aeu2f"
@@ -37,15 +36,47 @@ import (
 // }
 //
 
+
+// const appID = "http://localhost:8080/"
+
+// var trustedFacets = []string{appID}
+
+// Normally these state variables would be stored in a database.
+// For the purposes of the demo, we just store them in memory.
+var challenge *u2f.Challenge
+var registration []byte
+var counter uint32
+
+
+
 type Registered struct {
   Registration []byte
   Counter      int
 }
 
+// getAppID returns the U2F application ID, which must be the HTTPS server
+// address, e.g. `https://40ccd7b5.ngrok.com`.  There can be no trailing '/'.
+// The application must be over HTTPS or the U2F will fail with {errorCode: 2}.
+//
+// See details of error codes at:
+// https://developers.yubico.com/U2F/Libraries/Client_error_codes.html
+//
+// A simple HTTP -> HTTPS reverse proxy is ngrok.
+//
+// In production it would defeat a proper security restriction to get the AppID
+// from the Referer header, but it is a workaround for dev_appserver.py not
+// serving HTTPS.
+func getAppID(r *http.Request) string {
+  var referer = r.Header["Referer"][0]
+  return referer[:len(referer) - 1]
+}
+
 
 func registerRequest(w http.ResponseWriter, r *http.Request) {
-  ctx := appengine.NewContext(r)
-  var appID string = appengine.AppID(ctx)
+  // ctx := appengine.NewContext(r)
+  // var appID string = appengine.AppID(ctx)
+
+  var appID = getAppID(r)
   var trustedFacets = []string{appID}
 
 	c, err := u2f.NewChallenge(appID, trustedFacets)
@@ -96,6 +127,9 @@ func registerResponse(w http.ResponseWriter, r *http.Request) {
 }
 
 func signRequest(w http.ResponseWriter, r *http.Request) {
+  var appID = getAppID(r)
+  var trustedFacets = []string{appID}
+
 	if registration == nil {
 		http.Error(w, "registration missing", http.StatusBadRequest)
 		return
@@ -182,4 +216,5 @@ func init() {
   	http.HandleFunc("/registerResponse", registerResponse)
   	http.HandleFunc("/signRequest", signRequest)
   	http.HandleFunc("/signResponse", signResponse)
+    // TODO: Delete.
 }
