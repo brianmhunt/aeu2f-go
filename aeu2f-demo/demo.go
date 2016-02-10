@@ -54,9 +54,11 @@ type Registered struct {
   Counter      int
 }
 
-// getAppID returns the U2F application ID, which must be the HTTPS server
+// GetAppID returns a U2F application ID, which must be the HTTPS server
 // address, e.g. `https://40ccd7b5.ngrok.com`.  There can be no trailing '/'.
-// The application must be over HTTPS or the U2F will fail with {errorCode: 2}.
+//
+// Also, The application must be over HTTPS or the U2F will fail with
+// {errorCode: 2}.
 //
 // See details of error codes at:
 // https://developers.yubico.com/U2F/Libraries/Client_error_codes.html
@@ -67,8 +69,7 @@ type Registered struct {
 // from the Referer header, but it is a workaround for dev_appserver.py not
 // serving HTTPS.
 func getAppID(r *http.Request) string {
-  var referer = r.Header["Referer"][0]
-  return referer[:len(referer) - 1]
+  return r.Header["Referer"][0][:len(referer) - 1]
 }
 
 
