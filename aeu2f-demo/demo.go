@@ -8,9 +8,10 @@ import (
   "encoding/json"
   "io/ioutil"
 
-  // "appengine"
+  "appengine"
   // "appengine/datastore"
   // "github.com/brianmhunt/aeu2f"
+  "github.com/brianmhunt/aeu2f-go"
 
   "github.com/tstranex/u2f"
 )
@@ -69,27 +70,24 @@ type Registered struct {
 // from the Referer header, but it is a workaround for dev_appserver.py not
 // serving HTTPS.
 func getAppID(r *http.Request) string {
-  return r.Header["Referer"][0][:len(referer) - 1]
+  var referer = r.Header["Referer"][0]
+  return referer[:len(referer) - 1]
 }
 
 
 func registerRequest(w http.ResponseWriter, r *http.Request) {
-  // ctx := appengine.NewContext(r)
+  ctx := appengine.NewContext(r)
   // var appID string = appengine.AppID(ctx)
 
-  var appID = getAppID(r)
-  var trustedFacets = []string{appID}
+  aeu2f.AppID = getAppID(r)
+  aeu2f.TrustedFacets = []string{aeu2f.AppID}
 
-	c, err := u2f.NewChallenge(appID, trustedFacets)
-	if err != nil {
-		log.Printf("u2f.NewChallenge error: %v", err)
+  req, err := aeu2f.NewChallenge(ctx, "test")
+  if err != nil {
+		log.Printf("Registration Challenge error: %v", err)
 		http.Error(w, "error", http.StatusInternalServerError)
-		return
-	}
-  // save challenge c
-  challenge = c
-
-	req := c.RegisterRequest()
+    return
+  }
 
 	log.Printf("registerRequest: %+v", req)
 	json.NewEncoder(w).Encode(req)
