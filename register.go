@@ -42,8 +42,15 @@ var TrustedFacets []string
 var ChallengeTimeout = 1000 * 60  // milliseconds
 
 
+// MakeParentKey returns a Key to be used as the parent for the model, to
+// enforce strong consistency.
+func MakeParentKey(ctx appengine.Context) *datastore.Key {
+	return datastore.NewKey(ctx, "U2F", "Registration", 0, nil)
+}
+
+
 // makeKey creates a key for a strongly consistent model.
-func makeKey(ctx appengine.Context, userIdentity, kind string) *datastore.Key {	parent := datastore.NewKey(ctx, "U2F", "Registration", 0, nil)
+func makeKey(ctx appengine.Context, userIdentity, kind string) *datastore.Key {	parent := MakeParentKey(ctx)
 	return datastore.NewKey(ctx, kind, userIdentity, 0, parent)
 }
 
@@ -63,13 +70,14 @@ func NewChallenge(ctx appengine.Context, userIdentity string) (*u2f.RegisterRequ
 
 	// Save challenge to database.
 	ckey := makeKey(ctx, userIdentity, "Challenge")
-	if _, err := datastore.Put(ctx, ckey, c); err != nil {
+	k, err := datastore.Put(ctx, ckey, c)
+	if err != nil {
 		return nil, fmt.Errorf("datastore.Put error: %v", err)
 	}
 
 	// Return challenge request
 	req := c.RegisterRequest()
-	log.Printf("New Challenge: %+v", req)
+	log.Printf("🍁  New Challenge: %+v [%+v]", req, k)
 	return req, nil
 }
 
