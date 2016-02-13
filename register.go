@@ -16,6 +16,16 @@ import (
 	"appengine/datastore"
 
 	"github.com/tstranex/u2f"
+
+	"encoding/base64"
+	"strings"
+	"errors"
+	"crypto/elliptic"
+	"encoding/asn1"
+	"crypto/subtle"
+	"crypto/x509"
+	"encoding/json"
+
 )
 
 // type Challenge struct {
@@ -70,16 +80,133 @@ func NewChallenge(ctx appengine.Context, userIdentity string) (*u2f.RegisterRequ
 
 	// Save challenge to database.
 	ckey := makeKey(ctx, userIdentity, "Challenge")
-	k, err := datastore.Put(ctx, ckey, c)
-	if err != nil {
+	if _, err := datastore.Put(ctx, ckey, c); err != nil {
 		return nil, fmt.Errorf("datastore.Put error: %v", err)
 	}
 
 	// Return challenge request
 	req := c.RegisterRequest()
-	log.Printf("🍁  New Challenge: %+v [%+v]", req, k)
+	// log.Printf("🍁  New Challenge: %+v [%+v]", req, k)
 	return req, nil
 }
+
+// ----------
+func decodeBase64(s string) ([]byte, error) {
+	for i := 0; i < len(s)%4; i++ {
+		s += "="
+	}
+	return base64.URLEncoding.DecodeString(s)
+}
+
+func encodeBase64(buf []byte) string {
+	s := base64.URLEncoding.EncodeToString(buf)
+	return strings.TrimRight(s, "=")
+}
+
+
+func parseRegistration(buf []byte) (*u2f.Registration, []byte, error) {
+	if len(buf) < 1+65+1+1+1 {
+		return nil, nil, errors.New("u2f: data is too short")
+	}
+
+	var r u2f.Registration
+	r.Raw = buf
+
+	if buf[0] != 0x05 {
+		return nil, nil, errors.New("u2f: invalid reserved byte")
+	}
+	buf = buf[1:]
+
+	x, y := elliptic.Unmarshal(elliptic.P256(), buf[:65])
+	if x == nil {
+		return nil, nil, errors.New("u2f: invalid public key")
+	}
+	r.PubKey.Curve = elliptic.P256()
+	r.PubKey.X = x
+	r.PubKey.Y = y
+	buf = buf[65:]
+
+	khLen := int(buf[0])
+	buf = buf[1:]
+	if len(buf) < khLen {
+		return nil, nil, errors.New("u2f: invalid key handle")
+	}
+	r.KeyHandle = buf[:khLen]
+	buf = buf[khLen:]
+
+	// The length of the x509 cert isn't specified so it has to be inferred
+	// by parsing. We can't use x509.ParseCertificate yet because it returns
+	// an error if there are any trailing bytes. So parse raw asn1 as a
+	// workaround to get the length.
+	sig, err := asn1.Unmarshal(buf, &asn1.RawValue{})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	buf = buf[:len(buf)-len(sig)]
+	cert, err := x509.ParseCertificate(buf)
+	if err != nil {
+		return nil, nil, err
+	}
+	r.AttestationCert = cert
+
+	return &r, sig, nil
+}
+
+func verifyClientData(clientData []byte, challenge u2f.Challenge) error {
+	var cd u2f.ClientData
+	if err := json.Unmarshal(clientData, &cd); err != nil {
+		return err
+	}
+
+	foundFacetID := false
+	for _, facetID := range challenge.TrustedFacets {
+		if facetID == cd.Origin {
+			foundFacetID = true
+			break
+		}
+	}
+	if !foundFacetID {
+		return errors.New("u2f: untrusted facet id")
+	}
+
+	c := encodeBase64(challenge.Challenge)
+	log.Printf("cd: %+v", cd)
+	log.Printf("😡 Comparing\n...%+v\n...%+v", cd.Challenge, c)
+	log.Printf("😡 Comparing\n...%+v\n...%+v", []byte(cd.Challenge), []byte(c))
+	if len(c) != len(cd.Challenge) ||
+		subtle.ConstantTimeCompare([]byte(c), []byte(cd.Challenge)) != 1 {
+		return errors.New("u2f:👺 challenge does not match")
+	}
+	log.Printf("🍀  Registration passed")
+
+	return nil
+}
+
+func fakeRegister(resp u2f.RegisterResponse, c u2f.Challenge) (*u2f.Registration, error) {
+	regData, err := decodeBase64(resp.RegistrationData)
+	if err != nil {
+		return nil, err
+	}
+
+	clientData, err := decodeBase64(resp.ClientData)
+	if err != nil {
+		return nil, err
+	}
+
+	reg, _, err := parseRegistration(regData)
+	if err != nil {
+		return nil, err
+	}
+
+	// log.Printf("😇  Comparing\n CLIENT DATA: %+v to\nCHALLENGE %+v", clientData, c)
+	if err := verifyClientData(clientData, c); err != nil {
+		return nil, err
+	}
+
+	return reg, nil
+}
+
 
 
 // StoreResponse checks whether, based on the given information, the given
@@ -93,20 +220,25 @@ func NewChallenge(ctx appengine.Context, userIdentity string) (*u2f.RegisterRequ
 func StoreResponse(ctx appengine.Context, userIdentity string, resp u2f.RegisterResponse) error {
 	// Load the most recent challenge.
 	ckey := makeKey(ctx, userIdentity, "Challenge")
-  challenge := new(u2f.Challenge)
-  if err := datastore.Get(ctx, ckey, challenge); err != nil {
+
+	var challenge u2f.Challenge
+  if err := datastore.Get(ctx, ckey, &challenge); err != nil {
     return fmt.Errorf("datastore.Get error: %v", err)
   }
-
-	if challenge == nil {
-		return fmt.Errorf("No challenge found for user %v", userIdentity)
-	}
+	log.Printf("⭐️   challenge: %+v", challenge)
 
 	// Register the challenge & response
-	reg, err := u2f.Register(resp, *challenge, nil)
+	log.Printf("🚩 resp: %+v\n💝  challenge: %+v", resp, challenge)
+	if _, err := fakeRegister(resp, challenge); err != nil {
+		return fmt.Errorf("fakeRegister error: %v", err)
+	}
+	log.Print("☘  Matches! ")
+	// return fmt.Errorf("Orchestrated STOP...")
+	reg, err := u2f.Register(resp, challenge, &u2f.Config{true})
 	if err != nil {
 		return fmt.Errorf("u2f.Register error: %v", err)
 	}
+
 	buf, err := reg.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("reg.MarshalBinary error: %v", err)
