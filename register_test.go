@@ -11,6 +11,7 @@ import (
   "log"
   "time"
   "testing"
+	"encoding/base64"
 
   "appengine/aetest"
   "appengine/datastore"
@@ -18,13 +19,21 @@ import (
 	"github.com/tstranex/u2f"
 )
 
+
+// Pad the input string to 4 bytes with "=".
+func decodeBase64(s string) ([]byte, error) {
+	for i := 0; i < len(s) % 4; i++ {
+		s += "="
+	}
+	return base64.URLEncoding.DecodeString(s)
+}
+
+
 //
 // Example data from https://developers.yubico.com/python-u2flib-server/
 //
-const fakeChallengeB64 = "9s80ruHc6q9shJM5WLfOmz-ejb_Rm8dmWCnOvgZ2ovw"
-const fakeChallengeB64_2 = "D2pzTPZa7bq69ABuiGQILo9zcsTURP26RLifTyCkilc"
-const fakeChal_3 = "RHlj0gKpjW-lbxeP6kSESNGlg2urIdbfYnqKAh7Hxlo"
-var fakeChallenge, err = decodeBase64(fakeChal_3)
+const fakeChallengeB64 = "RHlj0gKpjW-lbxeP6kSESNGlg2urIdbfYnqKAh7Hxlo"
+var fakeChallenge, err = decodeBase64(fakeChallengeB64)
 // var fakeHost = "http://localhost:8081"
 var fakeHost = "https://aeu2f-demo.appspot.com"
 var fakeRegistrationChallenge = u2f.Challenge{
@@ -62,6 +71,8 @@ var fakeRegistrationResponse = u2f.RegisterResponse{
 
 
 func TestNewChallenge(t *testing.T) {
+  log.Printf("--- challenge ---")
+
   ctx, err := aetest.NewContext(nil)
   if err != nil {
     t.Fatal(err)
@@ -109,7 +120,7 @@ func TestGoodRegistration(t *testing.T) {
   }
   defer ctx.Close()
 
-  testId := "test-id-🔒"
+  var testId = "test-id-🔒"
 
   // Mimic NewChallenge
   ckey := makeKey(ctx, testId, "Challenge")
@@ -117,9 +128,31 @@ func TestGoodRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("datastore.Put error: %v", err)
 	}
-  log.Printf("Challenge: %+v", fakeRegistrationChallenge)
+  // log.Printf("Challenge: %+v", fakeRegistrationChallenge)
 
   if err := StoreResponse(ctx, testId, fakeRegistrationResponse); err != nil {
     t.Fatalf("StoreRegistration: %v", err)
+  }
+
+  // Load what was just saved and verify it.
+  k := makeKey(ctx, testId, "Registration")
+  var regi Registration
+  if err := datastore.Get(ctx, k, &regi); err != nil {
+    t.Fatalf("datastore.Get (%+v): %+v", k, regi)
+  }
+
+  // Verify the stored info.
+  if regi.Counter != 0 {
+    t.Error("Expected Counter to be 0")
+  }
+
+  if regi.UserIdentity != testId {
+    t.Error("Expected user identity %v to be %v", regi.UserIdentity,
+      testId)
+  }
+
+  u2fReg := new(u2f.Registration)
+  if err := u2fReg.UnmarshalBinary(regi.U2FRegistrationBytes); err != nil {
+    t.Fatalf("Unable to convert registration to struct: %+v", err)
   }
 }
