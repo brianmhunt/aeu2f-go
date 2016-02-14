@@ -29,9 +29,8 @@ func decodeBase64(s string) ([]byte, error) {
 }
 
 
-//
-// Example data from https://developers.yubico.com/python-u2flib-server/
-//
+// Data to replicate the
+// client -[request-challenge]> server -[challenge]> response -[challengeResponse]> server.registration
 const fakeChallengeB64 = "RHlj0gKpjW-lbxeP6kSESNGlg2urIdbfYnqKAh7Hxlo"
 var fakeChallenge, err = decodeBase64(fakeChallengeB64)
 // var fakeHost = "http://localhost:8081"
