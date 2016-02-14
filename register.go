@@ -11,6 +11,7 @@ package aeu2f
 import (
 	"log"
 	"fmt"
+	"time"
 
 	"appengine"
 	"appengine/datastore"
@@ -29,6 +30,7 @@ type Registration struct {
 	UserIdentity string
 	U2FRegistrationBytes []byte
 	Counter int
+	Created time.Time
 }
 
 // AppID identifies this application.  Must be set to the hostname.
@@ -108,7 +110,7 @@ func StoreResponse(ctx appengine.Context, userIdentity string, resp u2f.Register
 	}
 
 	// Save the registration in the datastore
-	regi := Registration{UserIdentity: userIdentity, Counter: 0, U2FRegistrationBytes: buf}
+	regi := Registration{UserIdentity: userIdentity, Counter: 0, U2FRegistrationBytes: buf, Created: time.Now()}
 	// We set the stringKey to 0, because the user identity is not part of the
 	// key.  We look up registrations by a datastore query, since there might
 	// be multiple.

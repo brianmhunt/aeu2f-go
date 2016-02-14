@@ -20,13 +20,15 @@ Action.style_map = {
   'warn': 'list-group-item-warning',
 }
 
-var actions = ko.observableArray([new Action("Page Loaded", null, 'pass')])
-var waiting_for_key = ko.observable(false)
-var is_communicating = ko.observable(false)
-
 Action.add = function(name, data, style) {
   actions.unshift(new Action(name, data, style))
 }
+
+var actions = ko.observableArray([new Action("Page Loaded", null, 'pass')])
+var waiting_for_key = ko.observable(false)
+var is_communicating = ko.observable(false)
+var userIdentity = ko.observable()
+var userKeys = ko.observableArray()
 
 //
 // ---  The signing steps are below ---
@@ -45,7 +47,7 @@ function on_fail(msg) {
   the response completed by the U2F device.
  */
 function request(type, url, data) {
-  if (is_communicating()) { return }
+  if (is_communicating()) { return Promise.reject("Busy.") }
   is_communicating(true)
   Action.add("[" + type + "] " + url, data, 'info')
 
@@ -53,7 +55,6 @@ function request(type, url, data) {
     .always(function () { is_communicating(false) })
     .fail(on_fail)
 }
-
 
 
 /*
@@ -88,24 +89,43 @@ function sendChallengeResponse(url, resp) {
 }
 
 
+// Refresh the list of keys for a user
+function refreshKeys() {
+  request("getJSON", "/list/" + userIdentity())
+    .then(userKeys)
+}
+
+
+// User Identity - allow choosing different identities, and update the
+// list of keys for this person.
+userIdentity.
+  extend({ rateLimit: 500 }).
+  subscribe(refreshKeys)
+
+
+
 ko.applyBindings({
   is_https: window.location.protocol === 'https:',
   supported: Boolean(window.u2f),
   actions: actions,
   waiting_for_key: waiting_for_key,
   is_communicating: is_communicating,
+  userIdentity: userIdentity,
+  userKeys: userKeys,
 
   onRegisterClick: function () {
-    request("getJSON", "/registerRequest")
+    request("getJSON", "/register/" + userIdentity())
       .then(getU2FResponseToChallenge.bind(null, 'register'))
-      .then(sendChallengeResponse.bind(null, '/registerResponse'))
+      .then(sendChallengeResponse.bind(null, '/register/' + userIdentity()))
       .then(function () { Action.add("Registered", null, 'pass') })
   },
 
   onAuthenticateClick: function () {
-    request("getJSON", "/signRequest")
+    request("getJSON", "/sign/" + userIdentity)
       .then(getU2FResponseToChallenge.bind(null, 'sign'))
-      .then(sendChallengeResponse.bind(null, '/signResponse'))
+      .then(sendChallengeResponse.bind(null, '/sign/' + userIdentity()))
       .then(function () { Action.add("Signed", null, 'pass') })
   },
+
+  onRefreshClick: refreshKeys,
 })

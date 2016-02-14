@@ -9,8 +9,7 @@ import (
   "io/ioutil"
 
   "appengine"
-  // "appengine/datastore"
-  // "github.com/brianmhunt/aeu2f"
+  "appengine/datastore"
   "github.com/brianmhunt/aeu2f-go"
 
   "github.com/tstranex/u2f"
@@ -19,6 +18,7 @@ import (
 // Handle /register/USERNAME and /auth/USERNAME, respectively.
 const registerURLPrefix = "/register/"
 const authURLPrefix = "/auth/"
+const listURLPrefix = "/list/"
 
 
 // HTTP request wrappers
@@ -131,7 +131,7 @@ func fileHandler(w http.ResponseWriter, r *http.Request) {
 
 // --- setupUserContext ---
 //
-func setupUserContext(r *http.Request) (appengine.Context, string) {
+func setupUserContext(r *http.Request, prefix string) (appengine.Context, string) {
   // Set up the aeu2f variables.
   aeu2f.AppID = getAppID(r)
   aeu2f.TrustedFacets = []string{aeu2f.AppID}
@@ -140,7 +140,7 @@ func setupUserContext(r *http.Request) (appengine.Context, string) {
   ctx := appengine.NewContext(r)
 
   // Get the user identity
-  userIdentity := r.URL.Path[len(registerURLPrefix):]
+  userIdentity := r.URL.Path[len(prefix):]
   return ctx, userIdentity
 }
 
@@ -170,7 +170,7 @@ func testRegistrationResponse(ctx appengine.Context, userIdentity string, regRes
 // --- registerHandler ---
 //
 func registerHandler(w http.ResponseWriter, r *http.Request) {
-  ctx, userIdentity := setupUserContext(r)
+  ctx, userIdentity := setupUserContext(r, registerURLPrefix)
   if userIdentity == "" {
     http.Error(w, "User identity not provided", http.StatusBadRequest)
   }
@@ -210,12 +210,38 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// --- listHandler ---
+// Return a list of the keys for the given user.
+func listHandler(w http.ResponseWriter, r *http.Request) {
+  ctx, userIdentity := setupUserContext(r, listURLPrefix)
+  if userIdentity == "" {
+    http.Error(w, "User identity not provided", http.StatusBadRequest)
+  }
+
+  reqs := []aeu2f.Registration{}
+  q := datastore.NewQuery("Registration").Ancestor(aeu2f.MakeParentKey(ctx))
+	for t := q.Run(ctx) ; ; {
+		var regi aeu2f.Registration
+		if _, err := t.Next(&regi); err == datastore.Done {
+			break
+		} else if err != nil {
+  		http.Error(w, "datastore error: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		reqs = append(reqs, regi)
+	}
+
+  json.NewEncoder(w).Encode(reqs)
+}
+
 // --- init ---
 //
 func init() {
     http.HandleFunc("/", fileHandler)
 
     http.HandleFunc(registerURLPrefix, registerHandler)
+    http.HandleFunc(listURLPrefix, listHandler)
 
   	// http.HandleFunc("/registerRequest", registerRequest)
   	// http.HandleFunc("/registerResponse", registerResponse)
