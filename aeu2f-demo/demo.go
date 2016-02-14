@@ -3,7 +3,7 @@ package demo
 
 import (
   "log"
-  // "fmt"
+  "fmt"
   "net/http"
   "encoding/json"
   "io/ioutil"
@@ -16,47 +16,14 @@ import (
   "github.com/tstranex/u2f"
 )
 
+// Handle /register/USERNAME and /auth/USERNAME, respectively.
+const registerURLPrefix = "/register/"
+const authURLPrefix = "/auth/"
+
+
 // HTTP request wrappers
 // https://gist.github.com/tristanwietsma/8444cf3cb5a1ac496203
 
-// u2f.Challenge & u2f.Registration
-//
-// type Challenge struct {
-// 	Challenge     []byte
-// 	Timestamp     time.Time
-// 	AppID         string
-// 	TrustedFacets []string
-// }
-//
-// type Registration struct {
-// Raw serialized registration data as received from the token.
-// 	Raw []byte
-//
-// 	KeyHandle []byte
-// 	PubKey    ecdsa.PublicKey
-//
-// 	// AttestationCert can be nil for Authenticate requests.
-// 	AttestationCert *x509.Certificate
-// }
-//
-
-
-// const appID = "http://localhost:8080/"
-
-// var trustedFacets = []string{appID}
-
-// Normally these state variables would be stored in a database.
-// For the purposes of the demo, we just store them in memory.
-var challenge *u2f.Challenge
-var registration []byte
-var counter uint32
-
-
-
-type Registered struct {
-  Registration []byte
-  Counter      int
-}
 
 // GetAppID returns a U2F application ID, which must be the HTTPS server
 // address, e.g. `https://40ccd7b5.ngrok.com`.  There can be no trailing '/'.
@@ -77,126 +44,76 @@ func getAppID(r *http.Request) string {
   return referer[:len(referer) - 1]
 }
 
-
-func registerRequest(w http.ResponseWriter, r *http.Request) {
-  ctx := appengine.NewContext(r)
-  // var appID string = appengine.AppID(ctx)
-
-  aeu2f.AppID = getAppID(r)
-  aeu2f.TrustedFacets = []string{aeu2f.AppID}
-
-  req, err := aeu2f.NewChallenge(ctx, "test")
-  if err != nil {
-		log.Printf("Registration Challenge error: %v", err)
-		http.Error(w, "error", http.StatusInternalServerError)
-    return
-  }
-
-	log.Printf("registerRequest: %+v", req)
-	json.NewEncoder(w).Encode(req)
-}
-
-func registerResponse(w http.ResponseWriter, r *http.Request) {
-	var regResp u2f.RegisterResponse
-	if err := json.NewDecoder(r.Body).Decode(&regResp); err != nil {
-		http.Error(w, "invalid response: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	log.Printf("registerResponse: %+v", regResp)
-
-	if challenge == nil {
-		http.Error(w, "challenge not found", http.StatusBadRequest)
-		return
-	}
-
-	reg, err := u2f.Register(regResp, *challenge, nil)
-	if err != nil {
-		log.Printf("u2f.Register error: %v", err)
-		http.Error(w, "error verifying response", http.StatusInternalServerError)
-		return
-	}
-	buf, err := reg.MarshalBinary()
-	if err != nil {
-		log.Printf("reg.MarshalBinary error: %v", err)
-		http.Error(w, "error", http.StatusInternalServerError)
-		return
-	}
-	registration = buf
-	counter = 0
-
-	log.Printf("Registration success: %+v", registration)
-	w.Write([]byte("success"))
-}
-
-func signRequest(w http.ResponseWriter, r *http.Request) {
-  var appID = getAppID(r)
-  var trustedFacets = []string{appID}
-
-	if registration == nil {
-		http.Error(w, "registration missing", http.StatusBadRequest)
-		return
-	}
-
-	c, err := u2f.NewChallenge(appID, trustedFacets)
-	if err != nil {
-		log.Printf("u2f.NewChallenge error: %v", err)
-		http.Error(w, "error", http.StatusInternalServerError)
-		return
-	}
-	challenge = c
-
-	var reg u2f.Registration
-	if err := reg.UnmarshalBinary(registration); err != nil {
-		log.Printf("reg.UnmarshalBinary error: %v", err)
-		http.Error(w, "error", http.StatusInternalServerError)
-		return
-	}
-
-	req := c.SignRequest(reg)
-	log.Printf("signRequest: %+v", req)
-	json.NewEncoder(w).Encode(req)
-}
-
-func signResponse(w http.ResponseWriter, r *http.Request) {
-	var signResp u2f.SignResponse
-	if err := json.NewDecoder(r.Body).Decode(&signResp); err != nil {
-		http.Error(w, "invalid response: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	log.Printf("signResponse: %+v", signResp)
-
-	if challenge == nil {
-		http.Error(w, "challenge missing", http.StatusBadRequest)
-		return
-	}
-	if registration == nil {
-		http.Error(w, "registration missing", http.StatusBadRequest)
-		return
-	}
-
-	var reg u2f.Registration
-	if err := reg.UnmarshalBinary(registration); err != nil {
-		log.Printf("reg.UnmarshalBinary error: %v", err)
-		http.Error(w, "error", http.StatusInternalServerError)
-		return
-	}
-
-	newCounter, err := reg.Authenticate(signResp, *challenge, counter)
-	if err != nil {
-		log.Printf("VerifySignResponse error: %v", err)
-		http.Error(w, "error verifying response", http.StatusInternalServerError)
-		return
-	}
-	log.Printf("newCounter: %d", newCounter)
-	counter = newCounter
-
-	w.Write([]byte("success"))
-}
+// func signRequest(w http.ResponseWriter, r *http.Request) {
+//   var appID = getAppID(r)
+//   var trustedFacets = []string{appID}
+//
+// 	if registration == nil {
+// 		http.Error(w, "registration missing", http.StatusBadRequest)
+// 		return
+// 	}
+//
+// 	c, err := u2f.NewChallenge(appID, trustedFacets)
+// 	if err != nil {
+// 		log.Printf("u2f.NewChallenge error: %v", err)
+// 		http.Error(w, "error", http.StatusInternalServerError)
+// 		return
+// 	}
+// 	challenge = c
+//
+// 	var reg u2f.Registration
+// 	if err := reg.UnmarshalBinary(registration); err != nil {
+// 		log.Printf("reg.UnmarshalBinary error: %v", err)
+// 		http.Error(w, "error", http.StatusInternalServerError)
+// 		return
+// 	}
+//
+// 	req := c.SignRequest(reg)
+// 	log.Printf("signRequest: %+v", req)
+// 	json.NewEncoder(w).Encode(req)
+// }
+//
+// func signResponse(w http.ResponseWriter, r *http.Request) {
+// 	var signResp u2f.SignResponse
+// 	if err := json.NewDecoder(r.Body).Decode(&signResp); err != nil {
+// 		http.Error(w, "invalid response: "+err.Error(), http.StatusBadRequest)
+// 		return
+// 	}
+//
+// 	log.Printf("signResponse: %+v", signResp)
+//
+// 	if challenge == nil {
+// 		http.Error(w, "challenge missing", http.StatusBadRequest)
+// 		return
+// 	}
+// 	if registration == nil {
+// 		http.Error(w, "registration missing", http.StatusBadRequest)
+// 		return
+// 	}
+//
+// 	var reg u2f.Registration
+// 	if err := reg.UnmarshalBinary(registration); err != nil {
+// 		log.Printf("reg.UnmarshalBinary error: %v", err)
+// 		http.Error(w, "error", http.StatusInternalServerError)
+// 		return
+// 	}
+//
+// 	newCounter, err := reg.Authenticate(signResp, *challenge, counter)
+// 	if err != nil {
+// 		log.Printf("VerifySignResponse error: %v", err)
+// 		http.Error(w, "error verifying response", http.StatusInternalServerError)
+// 		return
+// 	}
+// 	log.Printf("newCounter: %d", newCounter)
+// 	counter = newCounter
+//
+// 	w.Write([]byte("success"))
+// }
+//  ^^^^^^^^^^^^^
 
 
-
+// --- fileHandler ---
+//
 func fileHandler(w http.ResponseWriter, r *http.Request) {
   var path string
   if r.URL.Path == "/" {
@@ -212,12 +129,97 @@ func fileHandler(w http.ResponseWriter, r *http.Request) {
   w.Write([]byte(b))
 }
 
+// --- setupUserContext ---
+//
+func setupUserContext(r *http.Request) (appengine.Context, string) {
+  // Set up the aeu2f variables.
+  aeu2f.AppID = getAppID(r)
+  aeu2f.TrustedFacets = []string{aeu2f.AppID}
 
+  // Create an AppEngine context
+  ctx := appengine.NewContext(r)
+
+  // Get the user identity
+  userIdentity := r.URL.Path[len(registerURLPrefix):]
+  return ctx, userIdentity
+}
+
+
+// --- createRegistrationChallenge ---
+//
+func createRegistrationChallenge(ctx appengine.Context, userIdentity string) (interface{}, error) {
+  req, err := aeu2f.NewChallenge(ctx, userIdentity)
+  if err != nil {
+    return nil, fmt.Errorf("Registration Challenge error: %v", err)
+  }
+
+	log.Printf("Created Registration Challenge: %+v", req)
+  return req, nil
+}
+
+
+// --- testRegistrationResponse ---
+//
+func testRegistrationResponse(ctx appengine.Context, userIdentity string, regResp u2f.RegisterResponse) (interface{}, error) {
+	if err := aeu2f.StoreResponse(ctx, userIdentity, regResp); err != nil {
+    return nil, fmt.Errorf("Registration error: %v", err)
+  }
+  return "success", nil
+}
+
+// --- registerHandler ---
+//
+func registerHandler(w http.ResponseWriter, r *http.Request) {
+  ctx, userIdentity := setupUserContext(r)
+  if userIdentity == "" {
+    http.Error(w, "User identity not provided", http.StatusBadRequest)
+  }
+
+  var err error
+  var ret interface{}
+
+  switch r.Method {
+
+  case "GET":
+    ret, err = createRegistrationChallenge(ctx, userIdentity)
+
+  case "POST":
+  	var regResp u2f.RegisterResponse
+  	if err := json.NewDecoder(r.Body).Decode(&regResp); err != nil {
+  		http.Error(w, "invalid response: "+err.Error(), http.StatusBadRequest)
+  		return
+  	}
+
+  	log.Printf("registerResponse: %+v", regResp)
+
+    ret, err = testRegistrationResponse(ctx, userIdentity, regResp)
+  default:
+    http.Error(w, "Method not supported.", http.StatusBadRequest)
+  }
+
+  if err != nil {
+    http.Error(w, "Error: %v" + err.Error(), http.StatusBadRequest)
+  }
+
+  json.NewEncoder(w).Encode(ret)
+}
+
+// --- authHandler ---
+//
+func authHandler(w http.ResponseWriter, r *http.Request) {
+
+}
+
+// --- init ---
+//
 func init() {
     http.HandleFunc("/", fileHandler)
-  	http.HandleFunc("/registerRequest", registerRequest)
-  	http.HandleFunc("/registerResponse", registerResponse)
-  	http.HandleFunc("/signRequest", signRequest)
-  	http.HandleFunc("/signResponse", signResponse)
+
+    http.HandleFunc(registerURLPrefix, registerHandler)
+
+  	// http.HandleFunc("/registerRequest", registerRequest)
+  	// http.HandleFunc("/registerResponse", registerResponse)
+  	// http.HandleFunc("/signRequest", signRequest)
+  	// http.HandleFunc("/signResponse", signResponse)
     // TODO: Delete.
 }

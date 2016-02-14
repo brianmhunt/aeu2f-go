@@ -74,7 +74,8 @@ func NewChallenge(ctx appengine.Context, userIdentity string) (*u2f.RegisterRequ
 
 	// Return challenge request
 	req := c.RegisterRequest()
-	log.Printf("🍁  New Challenge: %+v [%+v]", req, ckey)
+	log.Printf("🍁  New Registration Challenge for %v: %+v [%+v]",
+		userIdentity, req, ckey)
 	return req, nil
 }
 

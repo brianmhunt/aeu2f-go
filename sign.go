@@ -43,12 +43,11 @@ func NewSignChallenge(ctx appengine.Context, userIdentity string) ([]*u2f.SignRe
 	q := datastore.NewQuery("Registration").
 		Ancestor(pkey).
 		Filter("UserIdentity =", userIdentity)
-	t := q.Run(ctx)
 
 	var reqs = []*u2f.SignRequest{}
 
-	// Convert registrations into  array of u2f challenges
-	for {
+	// Retrieve & convert registrations into  array of u2f challenges
+	for t := q.Run(ctx) ; ; {
 		var regi Registration
 		_, err = t.Next(&regi)
 		if err == datastore.Done {
@@ -66,8 +65,6 @@ func NewSignChallenge(ctx appengine.Context, userIdentity string) ([]*u2f.SignRe
 		reqs = append(reqs, signr)
 	}
 
-	// Extract the u2f.Registration
-
 	// Save challenge to database.
 	ckey := makeKey(ctx, userIdentity, "SignChallenge")
 	if _, err := datastore.Put(ctx, ckey, c); err != nil {
@@ -79,6 +76,8 @@ func NewSignChallenge(ctx appengine.Context, userIdentity string) ([]*u2f.SignRe
 	return reqs, nil
 }
 
+
+// Sign verifies or rejects a U2F response.
 func Sign(ctx appengine.Context, userIdentity string, resp u2f.RegisterResponse) error {
   return nil
 }
