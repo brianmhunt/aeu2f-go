@@ -16,6 +16,9 @@ import (
   "github.com/tstranex/u2f"
 )
 
+// HTTP request wrappers
+// https://gist.github.com/tristanwietsma/8444cf3cb5a1ac496203
+
 // u2f.Challenge & u2f.Registration
 //
 // type Challenge struct {

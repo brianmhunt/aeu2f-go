@@ -113,10 +113,21 @@ func TestGoodRegistration(t *testing.T) {
   }
 
   // Load what was just saved and verify it.
-  k := makeKey(ctx, testID, "Registration")
+  pkey := MakeParentKey(ctx)
+  q := datastore.NewQuery("Registration").
+    Ancestor(pkey).
+    Filter("UserIdentity =", testID)
+  qt := q.Run(ctx)
+
+  if count, err := q.Count(ctx); err != nil {
+    t.Fatalf("Count error: %v", err)
+  } else if count != 1 {
+    t.Fatalf("Expected only 1 item to be found.")
+  }
+
   var regi Registration
-  if err := datastore.Get(ctx, k, &regi); err != nil {
-    t.Fatalf("datastore.Get (%+v): %+v", k, regi)
+  if _, err = qt.Next(&regi); err != nil {
+    t.Fatalf("datastore.Get (%+v): %+v", qt, regi)
   }
 
   // Verify the stored info.
@@ -128,6 +139,8 @@ func TestGoodRegistration(t *testing.T) {
     t.Error("Expected user identity %v to be %v", regi.UserIdentity,
       testID)
   }
+
+  // TODO: Ensure we delete the challenge.
 
   u2fReg := new(u2f.Registration)
   if err := u2fReg.UnmarshalBinary(regi.U2FRegistrationBytes); err != nil {

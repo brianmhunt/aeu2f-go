@@ -50,8 +50,8 @@ func MakeParentKey(ctx appengine.Context) *datastore.Key {
 
 
 // makeKey creates a key for a strongly consistent model.
-func makeKey(ctx appengine.Context, userIdentity, kind string) *datastore.Key {	parent := MakeParentKey(ctx)
-	return datastore.NewKey(ctx, kind, userIdentity, 0, parent)
+func makeKey(ctx appengine.Context, stringKey, kind string) *datastore.Key {	parent := MakeParentKey(ctx)
+	return datastore.NewKey(ctx, kind, stringKey, 0, parent)
 }
 
 
@@ -63,8 +63,6 @@ func makeKey(ctx appengine.Context, userIdentity, kind string) *datastore.Key {	
 func NewChallenge(ctx appengine.Context, userIdentity string) (*u2f.RegisterRequest, error) {
 	// Generate a challenge
 	c, err := u2f.NewChallenge(AppID, TrustedFacets); if err != nil {
-		// log.Printf("u2f.NewChallenge error: %v", err)
-		// http.Error(w, "error", http.StatusInternalServerError)
 		return nil, fmt.Errorf("u2f.NewChallenge error: %v", err)
 	}
 
@@ -110,7 +108,10 @@ func StoreResponse(ctx appengine.Context, userIdentity string, resp u2f.Register
 
 	// Save the registration in the datastore
 	regi := Registration{UserIdentity: userIdentity, Counter: 0, U2FRegistrationBytes: buf}
-	k := makeKey(ctx, userIdentity, "Registration")
+	// We set the stringKey to 0, because the user identity is not part of the
+	// key.  We look up registrations by a datastore query, since there might
+	// be multiple.
+	k := makeKey(ctx, "", "Registration")
   if _, err := datastore.Put(ctx, k, &regi); err != nil {
     return fmt.Errorf("datastore.Put error: %v", err)
 	}
