@@ -22,3 +22,10 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+# vi tmp
+*.swp
+
+# grok log
+grok.log
+
