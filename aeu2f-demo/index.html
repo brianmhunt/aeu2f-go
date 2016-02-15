@@ -100,7 +100,7 @@
           <h4>
             List of keys for <!-- ko text: userIdentity --><!-- /ko -->
           </h4>
-          <table class='table table-condensed'>
+          <table class='table table-condensed' data-bind='visible: userKeys().length'>
             <thead>
               <tr>
                 <th>Created</th>
@@ -114,6 +114,11 @@
               </tr>
             </tbody>
           </table>
+          <div class='alert alert-info' data-bind='visible: !userKeys().length'>
+            There do not appear to be any keys in registered in the system
+            for <strong data-bind='text: userIdentity'></strong>.
+          </div>
+
           <button class='btn btn-info btn-block' data-bind='click: onRefreshClick'>
             <i class='fa fa-refresh'></i>
             Refresh

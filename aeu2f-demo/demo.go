@@ -219,7 +219,10 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
   }
 
   reqs := []aeu2f.Registration{}
-  q := datastore.NewQuery("Registration").Ancestor(aeu2f.MakeParentKey(ctx))
+  q := datastore.NewQuery("Registration").
+    Ancestor(aeu2f.MakeParentKey(ctx)).
+    Filter("UserIdentity =", userIdentity)
+
 	for t := q.Run(ctx) ; ; {
 		var regi aeu2f.Registration
 		if _, err := t.Next(&regi); err == datastore.Done {

@@ -46,10 +46,14 @@ function on_fail(msg) {
   Either GET a Challenge (to be completed by the U2F device), or POST
   the response completed by the U2F device.
  */
-function request(type, url, data) {
+function request(type, url, data, noAction) {
   if (is_communicating()) { return Promise.reject("Busy.") }
   is_communicating(true)
-  Action.add("[" + type + "] " + url, data, 'info')
+  if (!noAction) {
+    Action.add("[" + type + "] " + url, data, 'info')
+    // Update the keys + counters.
+    refreshKeys()
+  }
 
   return $[type](url, data ? JSON.stringify(data) : undefined)
     .always(function () { is_communicating(false) })
@@ -91,7 +95,9 @@ function sendChallengeResponse(url, resp) {
 
 // Refresh the list of keys for a user
 function refreshKeys() {
-  request("getJSON", "/list/" + userIdentity())
+  var userId = userIdentity()
+  if (!userId) { return Promise.reject("No user ID.") }
+  request("getJSON", "/list/" + userId, null, true)
     .then(userKeys)
 }
 
