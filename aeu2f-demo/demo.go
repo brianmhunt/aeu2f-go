@@ -218,14 +218,14 @@ func createAuthChallenge(ctx appengine.Context, userIdentity string) (interface{
 }
 
 // --- testAuthResponse ---
-func testAuthResponse(ctx appengine.Context, userIdentity string, regResp []u2f.RegisterResponse) (interface{}, error) {
-	// if err := aeu2f.StoreResponse(ctx, userIdentity, regResp); err != nil {
-  //   return nil, fmt.Errorf("Registration error: %v", err)
-  // }
-  // return "success", nil
+func testAuthResponse(ctx appengine.Context, userIdentity string, signResp u2f.SignResponse) (interface{}, error) {
+
+  if err := aeu2f.Sign(ctx, userIdentity, signResp); err != nil {
+    return nil, fmt.Errorf("Sign failure: %v", err)
+  }
+
   return "success", nil
 }
-
 
 
 // --- authHandler ---
@@ -244,15 +244,18 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
     ret, err = createAuthChallenge(ctx, userIdentity)
 
   case "POST":
-  	// var regResp u2f.RegisterResponse
-  	// if err := json.NewDecoder(r.Body).Decode(&regResp); err != nil {
-  	// 	http.Error(w, "invalid response: "+err.Error(), http.StatusBadRequest)
-  	// 	return
-  	// }
-    //
-  	// log.Printf("Auth Response: %+v", regResp)
-    //
-    // ret, err = testAuthResponse(ctx, userIdentity, regResp)
+  	var signResp u2f.SignResponse
+  	if err := json.NewDecoder(r.Body).Decode(&signResp); err != nil {
+  		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+  		return
+  	}
+
+  	log.Printf("Auth Response: %+v", signResp)
+
+    ret, err = testAuthResponse(ctx, userIdentity, signResp)
+    if err != nil {
+      http.Error(w, "Failed: " + err.Error(), http.StatusBadRequest)
+    }
   default:
     http.Error(w, "Method not supported.", http.StatusBadRequest)
   }
@@ -300,10 +303,5 @@ func init() {
     http.HandleFunc(registerURLPrefix, registerHandler)
     http.HandleFunc(authURLPrefix, authHandler)
     http.HandleFunc(listURLPrefix, listHandler)
-
-  	// http.HandleFunc("/registerRequest", registerRequest)
-  	// http.HandleFunc("/registerResponse", registerResponse)
-  	// http.HandleFunc("/signRequest", signRequest)
-  	// http.HandleFunc("/signResponse", signResponse)
     // TODO: Delete.
 }

@@ -29,7 +29,7 @@ import (
 type Registration struct {
 	UserIdentity string
 	U2FRegistrationBytes []byte
-	Counter int
+	Counter uint32
 	Created time.Time
 }
 
