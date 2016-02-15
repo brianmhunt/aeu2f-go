@@ -148,7 +148,7 @@ func setupUserContext(r *http.Request, prefix string) (appengine.Context, string
 // --- createRegistrationChallenge ---
 //
 func createRegistrationChallenge(ctx appengine.Context, userIdentity string) (interface{}, error) {
-  req, err := aeu2f.NewChallenge(ctx, userIdentity)
+  req, err := aeu2f.NewRegistrationChallenge(ctx, userIdentity)
   if err != nil {
     return nil, fmt.Errorf("Registration Challenge error: %v", err)
   }
@@ -166,6 +166,7 @@ func testRegistrationResponse(ctx appengine.Context, userIdentity string, regRes
   }
   return "success", nil
 }
+
 
 // --- registerHandler ---
 //
@@ -190,7 +191,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
   		return
   	}
 
-  	log.Printf("registerResponse: %+v", regResp)
+  	log.Printf("Registration Response: %+v", regResp)
 
     ret, err = testRegistrationResponse(ctx, userIdentity, regResp)
   default:
@@ -204,10 +205,63 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
   json.NewEncoder(w).Encode(ret)
 }
 
+// --- createAuthChallenge ---
+//
+func createAuthChallenge(ctx appengine.Context, userIdentity string) (interface{}, error) {
+  reqs, err := aeu2f.NewSignChallenge(ctx, userIdentity)
+  if err != nil {
+    return nil, fmt.Errorf("Auth Challenge error: %v", err)
+  }
+
+	log.Printf("Created Auth Challenge(s): %+v", reqs)
+  return reqs, nil
+}
+
+// --- testAuthResponse ---
+func testAuthResponse(ctx appengine.Context, userIdentity string, regResp []u2f.RegisterResponse) (interface{}, error) {
+	// if err := aeu2f.StoreResponse(ctx, userIdentity, regResp); err != nil {
+  //   return nil, fmt.Errorf("Registration error: %v", err)
+  // }
+  // return "success", nil
+  return "success", nil
+}
+
+
+
 // --- authHandler ---
 //
 func authHandler(w http.ResponseWriter, r *http.Request) {
+  ctx, userIdentity := setupUserContext(r, authURLPrefix)
+  if userIdentity == "" {
+    http.Error(w, "User identity not provided", http.StatusBadRequest)
+  }
+  var err error
+  var ret interface{}
 
+  switch r.Method {
+
+  case "GET":
+    ret, err = createAuthChallenge(ctx, userIdentity)
+
+  case "POST":
+  	// var regResp u2f.RegisterResponse
+  	// if err := json.NewDecoder(r.Body).Decode(&regResp); err != nil {
+  	// 	http.Error(w, "invalid response: "+err.Error(), http.StatusBadRequest)
+  	// 	return
+  	// }
+    //
+  	// log.Printf("Auth Response: %+v", regResp)
+    //
+    // ret, err = testAuthResponse(ctx, userIdentity, regResp)
+  default:
+    http.Error(w, "Method not supported.", http.StatusBadRequest)
+  }
+
+  if err != nil {
+    http.Error(w, "Error: %v" + err.Error(), http.StatusBadRequest)
+  }
+
+  json.NewEncoder(w).Encode(ret)
 }
 
 // --- listHandler ---
@@ -244,6 +298,7 @@ func init() {
     http.HandleFunc("/", fileHandler)
 
     http.HandleFunc(registerURLPrefix, registerHandler)
+    http.HandleFunc(authURLPrefix, authHandler)
     http.HandleFunc(listURLPrefix, listHandler)
 
   	// http.HandleFunc("/registerRequest", registerRequest)

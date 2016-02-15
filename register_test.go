@@ -58,7 +58,7 @@ func TestNewChallenge(t *testing.T) {
 
   // Create new challenge
   AppID = "tnc-appid"
-  c, err := NewChallenge(ctx, "test")
+  c, err := NewRegistrationChallenge(ctx, "test")
   if err != nil {
     t.Fatal(err)
   }

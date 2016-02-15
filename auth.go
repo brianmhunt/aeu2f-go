@@ -76,7 +76,6 @@ func NewSignChallenge(ctx appengine.Context, userIdentity string) ([]*u2f.SignRe
 	return reqs, nil
 }
 
-
 // Sign verifies or rejects a U2F response.
 func Sign(ctx appengine.Context, userIdentity string, resp u2f.RegisterResponse) error {
   return nil

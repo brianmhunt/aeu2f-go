@@ -31,7 +31,7 @@ var userIdentity = ko.observable()
 var userKeys = ko.observableArray()
 
 //
-// ---  The signing steps are below ---
+// ---  The signing (authenticating) steps are below ---
 //
 
 
@@ -72,9 +72,13 @@ function getU2FResponseToChallenge(kind, req) {
   var promise = $.Deferred()
 
   if (kind === 'register') {
+    console.log("Registering:", req)
     u2f.register([req], [], promise.resolve.bind(promise), 20)
-  } else {  // kind is 'sign'
-    u2f.sign([req], promise.resolve.bind(promise), 20)
+  } else {
+    // kind is 'sign', and `req` will be an array of challenges, one for each
+    // registered key.
+    console.log("Signing:", req)
+    u2f.sign(req, promise.resolve.bind(promise), 20)
   }
 
   promise.always(function () { waiting_for_key(false) })
@@ -127,10 +131,10 @@ ko.applyBindings({
   },
 
   onAuthenticateClick: function () {
-    request("getJSON", "/sign/" + userIdentity)
+    request("getJSON", "/auth/" + userIdentity())
       .then(getU2FResponseToChallenge.bind(null, 'sign'))
-      .then(sendChallengeResponse.bind(null, '/sign/' + userIdentity()))
-      .then(function () { Action.add("Signed", null, 'pass') })
+      .then(sendChallengeResponse.bind(null, '/auth/' + userIdentity()))
+      .then(function () { Action.add("Authenticated", null, 'pass') })
   },
 
   onRefreshClick: refreshKeys,

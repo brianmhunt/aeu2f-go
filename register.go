@@ -57,12 +57,13 @@ func makeKey(ctx appengine.Context, stringKey, kind string) *datastore.Key {	par
 }
 
 
-// NewChallenge creates a new U2F challenge and stores it in the datastore.
+// NewRegistrationChallenge creates a new U2F challenge and stores it in the
+// datastore.
 //
 // Encode the response with e.g.
 // 	 json.NewEncoder(w).Encode(req)
 //
-func NewChallenge(ctx appengine.Context, userIdentity string) (*u2f.RegisterRequest, error) {
+func NewRegistrationChallenge(ctx appengine.Context, userIdentity string) (*u2f.RegisterRequest, error) {
 	// Generate a challenge
 	c, err := u2f.NewChallenge(AppID, TrustedFacets); if err != nil {
 		return nil, fmt.Errorf("u2f.NewChallenge error: %v", err)
