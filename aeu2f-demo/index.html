@@ -4,169 +4,208 @@
   <head>
     <title>U2F Demo over AppEngine-Go</title>
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-    <link rel='stylesheet' href='//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css'/>
+    <link rel='stylesheet' href='//cdnjs.cloudflare.com/ajax/libs/bulma/0.0.14/css/bulma.min.css'/>
     <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
     <style>
       input:required:invalid, input:focus:invalid {
         border: 1px solid red;
       }
-      </style>
+      pre {
+        white-space: pre-wrap;
+      }
+    </style>
   </head>
   <body>
 
-    <div class='container'>
-      <div class="page-header">
-        <h1>
-          U2F Demo over AppEngine-Go<br/>
-          <small>
-            See how FIDO U2F works.
-          </small>
-        </h1>
-      </div>
-    </div>
-
-    <div class='container' data-bind='css: {hide: true}'>
-      <div class='alert alert-info'>
-        Page is loading.  Please wait.
-      </div>
-    </div>
-
-    <div class='container hide' data-bind='css: {hide: false}'>
-      <div class='alert alert-danger' data-bind='visible: !is_https'>
-        <h4>HTTPS required</h4>
-        <p>
-          U2F keys can only be registered or authenticated over HTTPS.  This
-          demonstration will not work over this connection.
-        </p>
-
-        <p>
-          Consider using a HTTPS proxy such
-          as <a target=_blank href='https://ngrok.com/'>ngrok</a>
-          or <a target=_blank href='https://fxyecgbxgq.localtunnel.me'>
-            localtunnel.me
-          </a>.
-        </p>
-      </div>
-
-      <div class='alert alert-danger' data-bind='visible: !supported'>
-        <h4>U2F Support Required</h4>
-          <p>
-            The current browser does not appear to support the FIDO `window.u2f`
-            protocol.  This demonstration will not work in this browser.
-          </p>
-
-          <p>
-            <a href='http://caniuse.com/#search=u2f' target=_blank>See Supported Browsers</a>
-          </p>
-      </div>
-
-      <div class='alert alert-danger text-center' data-bind='visible: waiting_for_key'>
-        <h4> Waiting for Key </h4>
-        <i class='fa fa-3x fa-spin fa-spinner'></i>
-        Press the U2F token key now.
-      </div>
-
-      <div class='alert alert-warning' data-bind='visible: is_communicating' style='position: absolute; z-index: 1; width: 100%'>
-        <div class='pull-right'>
-          <i class='fa fa-3x fa-spin fa-cog'></i>
+    <section class="hero">
+      <div class="hero-content">
+        <div class="container">
+          <h1 class="title">
+            U2F Demo on AppEngine/Go
+          </h1>
+          <h2 class="subtitle">
+            See how U2F works on Appengine using Golang
+          </h2>
         </div>
-        <h4>Please wait.</h4>
-        Communicating with server ...
       </div>
+    </section>
+
+    <section>
+      <div class='container'>
+        <div class="notification is-info" data-bind='visible: false'>
+          <i class='fa fa-lg fa-spin fa-spinner'></i>
+          Page is loading.  Please wait.
+        </div>
+      </div>
+    </section>
 
 
-      <div class='row'>
-        <div class='col-sm-3'>
-          <div class="form-group">
-            <label for="ui">Enter a user identity</label>
-            <input id="ui" type='text' class='form-control' placeholder='User identity' required data-bind='textInput: userIdentity, hasFocus: true'/>
+    <section style='display: none' data-bind='visible: true'>
+      <div class='container'>
+        <div class="message is-danger" data-bind='visible: !is_https'>
+          <div class="message-header">
+            HTTPS required
           </div>
+          <div class="message-body">
+            <p>
+              U2F keys can only be registered or authenticated over HTTPS.
+              This demonstration will not work over this connection.
+            </p>
 
-          <p>
-            The user identity is provided for the purpose of illustrating
-            the AppEngine datastore.
-          </p>
-
-          <button class='btn btn-primary btn-block' data-bind='click: onRegisterClick'>
-            Register Key
-          </button>
-
-          <hr/>
-
-          <button class='btn btn-primary btn-block' data-bind='click: onAuthenticateClick'>
-            Authenticate
-          </button>
-
-          <hr/>
-
-          <!-- ko if: userIdentity -->
-          <h4>
-            List of keys for <!-- ko text: userIdentity --><!-- /ko -->
-          </h4>
-          <table class='table table-condensed' data-bind='visible: userKeys().length'>
-            <thead>
-              <tr>
-                <th>Created</th>
-                <th>Counter</th>
-              </tr>
-            </thead>
-            <tbody data-bind='foreach: userKeys'>
-              <tr>
-                <td data-bind='text: $data.Created'></td>
-                <td class='text-right' data-bind='text: $data.Counter'></td>
-              </tr>
-            </tbody>
-          </table>
-          <div class='alert alert-info' data-bind='visible: !userKeys().length'>
-            There do not appear to be any keys in registered in the system
-            for <strong data-bind='text: userIdentity'></strong>.
-          </div>
-
-          <button class='btn btn-info btn-block' data-bind='click: onRefreshClick'>
-            <i class='fa fa-refresh'></i>
-            Refresh Keys
-          </button>
-          <hr/>
-          <!-- /ko -->
-
-          <div class='alert alert-info'>
-            <strong>Error codes</strong>
-            If a response is <code>{ errorCode: "N" }</code>, for some number N,
-            check out <a href='https://developers.yubico.com/U2F/Libraries/Client_error_codes.html'>the error code descriptions</a>.
+            <p>
+              Consider using a HTTPS proxy such
+              as <a target=_blank href='https://ngrok.com/'>ngrok</a>
+              or <a target=_blank href='https://fxyecgbxgq.localtunnel.me'>
+                localtunnel.me
+              </a>.
+            </p>
           </div>
         </div>
 
-        <div class='col-sm-9'>
-          <h3>Activity</h3>
-          <div class='list-group' data-bind='foreach: actions'>
-            <div class='list-group-item' data-bind='css: css'>
-              <small class='pull-right' data-bind='text: at'></small>
-              <h4 data-bind='text: name'></h4>
-              <pre class='small' data-bind='visible: data, text: data'></pre>
+
+        <div class="message is-danger" data-bind='visible: !supported'>
+          <div class="message-header">
+            Browser U2F Support Required
+          </div>
+          <div class="message-body">
+            <p>
+              The current browser does not appear to support the FIDO `window.u2f`
+              protocol.  This demonstration will not work in this browser.
+            </p>
+            <p>
+              <a href='http://caniuse.com/#search=u2f' target=_blank>See Supported Browsers</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section style='display: none' data-bind='visible: true'>
+      <div class='container'>
+        <div class="message is-success" data-bind='visible: waiting_for_key'>
+          <div class="message-header">
+            Waiting for key
+          </div>
+          <div class="message-body">
+            <i class='fa fa-spin fa-circle-o-notch'></i>
+            Press the U2F token key now.
+          </div>
+        </div>
+
+        <div class="message is-info" data-bind='visible: is_communicating'>
+          <div class="message-header">
+            Please wait
+          </div>
+          <div class="message-body">
+            Communicating with server
+          </div>
+        </div>
+
+        <div class="columns">
+          <div class="column is-third">
+            <p class='control'>
+              <label>
+                An arbitrary user identity
+                <input id="ui" type='text' class='input' placeholder='User identity' required data-bind='textInput: userIdentity, hasFocus: true'/>
+              </label>
+            </p>
+
+            <p>
+              The user identity is provided for the purpose of illustrating
+              the AppEngine datastore.
+            </p>
+
+            <button class='button is-info' data-bind='click: onRegisterClick'>
+              Register Key
+            </button>
+
+            <button class='button is-info' data-bind='click: onAuthenticateClick'>
+              Authenticate
+            </button>
+
+            <hr/>
+
+            <!-- ko if: userIdentity -->
+            <h4 class='title is-4'>
+              List of keys for <!-- ko text: userIdentity --><!-- /ko -->
+            </h4>
+            <table class='table table-condensed' data-bind='visible: userKeys().length'>
+              <thead>
+                <tr>
+                  <th>Created</th>
+                  <th>Counter</th>
+                </tr>
+              </thead>
+              <tbody data-bind='foreach: userKeys'>
+                <tr>
+                  <td data-bind='text: $data.Created'></td>
+                  <td class='text-right' data-bind='text: $data.Counter'></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class='alert alert-info' data-bind='visible: !userKeys().length'>
+              There do not appear to be any keys in registered in the system
+              for <strong data-bind='text: userIdentity'></strong>.
+            </div>
+
+            <button class='button is-primary' data-bind='click: onRefreshClick'>
+              <i class='fa fa-refresh'></i>
+              Refresh Keys
+            </button>
+            <hr/>
+            <!-- /ko -->
+
+            <div class="message">
+              <div class="message-header">
+                Error codes
+              </div>
+              <div class="message-body">
+                If a response is <code>{ errorCode: "N" }</code>, for some number N,
+                check out <a href='https://developers.yubico.com/U2F/Libraries/Client_error_codes.html'>the error code descriptions</a>.
+              </div>
             </div>
           </div>
+
+          <div class="column">
+            <h3 class="title is-3">
+              Activity log
+            </h3>
+
+            <!-- ko foreach: actions -->
+              <div class="message" data-bind='css: css'>
+                <div class="message-header">
+                  <span class='is-pulled-right'>
+                    <!-- ko text: at --><!-- /ko -->
+                  </span>
+                  <!-- ko text: name --><!-- /ko -->
+                </div>
+                <div class="message-body">
+                  <pre class='small' data-bind='visible: data, text: data'></pre>
+                </div>
+              </div>
+            <!-- /ko -->
+          </div>
         </div>
       </div>
+    </section>
 
 
-      <hr style='margin-top: 200px'/>
-
-      <div class='row'>
-        <div class='col-sm-6'>
+    <footer class="footer">
+      <div class="container">
+        <div class="content is-centered">
           <p>
             <a href='https://github.com/brianmhunt/aeu2f-go'>
               <i class='fa fa-github'></i>
               Github Repository
             </a>
+            Licensed under the
+            <a href="http://opensource.org/licenses/mit-license.php">
+              MIT
+            </a> License.
           </p>
         </div>
-
-        <div class='col-s-4'>
-          Copyright &copy; Brian M Hunt (2016); MIT License
-        </div>
       </div>
-
-    </div>
+    </footer>
 
     <script type="text/javascript" src="u2f-api.js"></script>
     <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>

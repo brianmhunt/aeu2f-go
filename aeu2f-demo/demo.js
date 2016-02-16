@@ -14,10 +14,10 @@ function Action(name, data, style) {
 }
 
 Action.style_map = {
-  'fail': 'list-group-item-danger',
-  'pass': 'list-group-item-success',
-  'info': 'list-group-item-info',
-  'warn': 'list-group-item-warning',
+  'fail': 'is-danger',
+  'pass': 'is-success',
+  'info': 'is-info',
+  'warn': 'is-warning',
 }
 
 Action.add = function(name, data, style) {
