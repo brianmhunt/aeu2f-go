@@ -92,13 +92,16 @@ func testSignChallenge(challenge u2f.Challenge, regi Registration, signResp u2f.
 		return fmt.Errorf("reg.UnmarshalBinary error: %v", err)
 	}
 
-	newCounter, err := reg.Authenticate(signResp, challenge, regi.Counter)
+	// The AppEngine datastore does not accept uint types, see:
+	// https://github.com/golang/appengine/blob/master/datastore/save.go#L148
+	// So we cast int64 to uint32 when coming from the datastore, and back.
+	newCounter, err := reg.Authenticate(signResp, challenge, uint32(regi.Counter))
 	if err != nil {
 		return fmt.Errorf("VerifySignResponse error: %v", err)
 	}
 
 	// Update the counter for the next auth.
-	regi.Counter = newCounter
+	regi.Counter = int64(newCounter)
 	return nil
 }
 

@@ -19,17 +19,13 @@ import (
 	"github.com/tstranex/u2f"
 )
 
-// type Challenge struct {
-// 	userIdentity string
-// 	challenge u2f.Challenge
-// }
-//
-
 // Registration stores the response to a registration challenge.
 type Registration struct {
 	UserIdentity string
 	U2FRegistrationBytes []byte
-	Counter uint32
+
+	// u2f.sign takes a uint32, but appengine does not store uints.
+	Counter int64
 	Created time.Time
 }
 

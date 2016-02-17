@@ -12,6 +12,7 @@
       }
       pre {
         white-space: pre-wrap;
+        word-wrap: break-word
       }
     </style>
   </head>
@@ -103,6 +104,10 @@
 
         <div class="columns">
           <div class="column is-third">
+            <h4 class='title is-4'>
+              Test out a key for a user.
+            </h4>
+
             <p class='control'>
               <label>
                 An arbitrary user identity
@@ -111,8 +116,8 @@
             </p>
 
             <p>
-              The user identity is provided for the purpose of illustrating
-              the AppEngine datastore.
+              The user identity can be any string; it is meant only
+              for the purpose of illustration.
             </p>
 
             <button class='button is-info' data-bind='click: onRegisterClick'>

@@ -47,6 +47,7 @@ function on_fail(msg) {
   the response completed by the U2F device.
  */
 function request(type, url, data, noAction) {
+  if (!userIdentity()) { return Promise.reject("No user ID") }
   if (is_communicating()) { return Promise.reject("Busy.") }
   is_communicating(true)
   if (!noAction) {

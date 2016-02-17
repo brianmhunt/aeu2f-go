@@ -253,14 +253,12 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
   	log.Printf("Auth Response: %+v", signResp)
 
     ret, err = testAuthResponse(ctx, userIdentity, signResp)
-    if err != nil {
-      http.Error(w, "Failed: " + err.Error(), http.StatusBadRequest)
-    }
   default:
     http.Error(w, "Method not supported.", http.StatusBadRequest)
   }
 
   if err != nil {
+    log.Printf("testAuthResponse error: %+v", err)
     http.Error(w, "Error: %v" + err.Error(), http.StatusBadRequest)
   }
 
