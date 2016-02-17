@@ -28,7 +28,7 @@ func loadRegistrations(ctx appengine.Context, userIdentity string) ([]*datastore
 		Filter("UserIdentity =", userIdentity)
 
 	// Retrieve & save registrations into array of challenges
-	keys, err := q.GetAll(ctx, regis)
+	keys, err := q.GetAll(ctx, &regis)
 	if err != nil {
 		return nil, nil, fmt.Errorf("datastore GetAll error: %+v", err)
 	}
