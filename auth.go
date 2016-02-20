@@ -7,15 +7,14 @@
 package aeu2f
 
 import (
-	"log"
 	"fmt"
+	"log"
 
 	"appengine"
 	"appengine/datastore"
 
 	"github.com/tstranex/u2f"
 )
-
 
 // loadRegistrations returns a slice of the registrations for a given user
 // identity.
@@ -36,7 +35,6 @@ func loadRegistrations(ctx appengine.Context, userIdentity string) ([]*datastore
 	return keys, regis, nil
 }
 
-
 func signChallengeRequest(c u2f.Challenge, regi Registration) (*u2f.SignRequest, error) {
 	var reg u2f.Registration
 	buf := regi.U2FRegistrationBytes
@@ -48,13 +46,13 @@ func signChallengeRequest(c u2f.Challenge, regi Registration) (*u2f.SignRequest,
 	return c.SignRequest(reg), nil
 }
 
-
 // NewSignChallenge returns a challenge for the U2F device.
 //
 func NewSignChallenge(ctx appengine.Context, userIdentity string) ([]*u2f.SignRequest, error) {
 
 	// Create challenge
-	c, err := u2f.NewChallenge(AppID, TrustedFacets); if err != nil {
+	c, err := u2f.NewChallenge(AppID, TrustedFacets)
+	if err != nil {
 		return nil, fmt.Errorf("u2f.NewChallenge error: %v", err)
 	}
 
@@ -84,7 +82,6 @@ func NewSignChallenge(ctx appengine.Context, userIdentity string) ([]*u2f.SignRe
 	return reqs, nil
 }
 
-
 // --- testSignChallenge ---
 func testSignChallenge(challenge u2f.Challenge, regi Registration, signResp u2f.SignResponse) error {
 	var reg u2f.Registration
@@ -104,7 +101,6 @@ func testSignChallenge(challenge u2f.Challenge, regi Registration, signResp u2f.
 	regi.Counter = int64(newCounter)
 	return nil
 }
-
 
 // Sign verifies or rejects a U2F response.
 func Sign(ctx appengine.Context, userIdentity string, signResp u2f.SignResponse) error {
